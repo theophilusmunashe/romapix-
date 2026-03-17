@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PaymentStatusBadge } from "@/components/payment-status-badge";
 import type { Client } from "@/lib/types";
-import { calculateClientTotals, getMonthlyPaymentStatus } from "@/lib/types";
+import { calculateClientTotals, getMonthlyPaymentStatus, isClientUpToDate } from "@/lib/types";
 import { Eye, Pencil, Trash2, MoreHorizontal, Search, Filter } from "lucide-react";
 
 interface ClientTableProps {
@@ -31,13 +31,14 @@ interface ClientTableProps {
 
 export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "uptodate" | "behind">("all");
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   const filteredClients = clients.filter((client) => {
-    const { isPaid } = calculateClientTotals(client);
+    const { totalPaid, amountOwing } = calculateClientTotals(client);
     const currentMonthStatus = getMonthlyPaymentStatus(client, currentMonth);
     const isCurrentMonthPaid = currentMonthStatus.isPaid;
+    const isUpToDate = isClientUpToDate(client);
     
     const matchesSearch =
       client.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -46,8 +47,8 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
 
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "paid" && isCurrentMonthPaid) ||
-      (statusFilter === "unpaid" && !isCurrentMonthPaid);
+      (statusFilter === "uptodate" && isUpToDate) ||
+      (statusFilter === "behind" && !isUpToDate);
 
     return matchesSearch && matchesStatus;
   });
@@ -83,20 +84,20 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
               All
             </Button>
             <Button
-              variant={statusFilter === "paid" ? "default" : "outline"}
+              variant={statusFilter === "uptodate" ? "default" : "outline"}
               size="sm"
-              onClick={() => setStatusFilter("paid")}
-              className={statusFilter === "paid" ? "bg-green-600 hover:bg-green-700" : ""}
+              onClick={() => setStatusFilter("uptodate")}
+              className={statusFilter === "uptodate" ? "bg-green-600 hover:bg-green-700" : ""}
             >
-              Paid This Month
+              Up To Date
             </Button>
             <Button
-              variant={statusFilter === "unpaid" ? "default" : "outline"}
+              variant={statusFilter === "behind" ? "default" : "outline"}
               size="sm"
-              onClick={() => setStatusFilter("unpaid")}
-              className={statusFilter === "unpaid" ? "bg-red-600 hover:bg-red-700" : ""}
+              onClick={() => setStatusFilter("behind")}
+              className={statusFilter === "behind" ? "bg-red-600 hover:bg-red-700" : ""}
             >
-              Owing This Month
+              Behind
             </Button>
           </div>
         </div>
@@ -111,7 +112,7 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
               <TableHead className="hidden md:table-cell">Phone</TableHead>
               <TableHead className="text-right">Paid</TableHead>
               <TableHead className="text-right">Owing</TableHead>
-              <TableHead>Status (This Month)</TableHead>
+              <TableHead>Payment Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -127,6 +128,7 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                 const { totalPaid, amountOwing } = calculateClientTotals(client);
                 const currentMonthStatus = getMonthlyPaymentStatus(client, currentMonth);
                 const isCurrentMonthPaid = currentMonthStatus.isPaid;
+                const isUpToDate = isClientUpToDate(client);
                 return (
                   <TableRow key={client.id}>
                     <TableCell>
@@ -150,7 +152,12 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <PaymentStatusBadge isPaid={isCurrentMonthPaid} />
+                      <div className="flex items-center gap-1">
+                        <PaymentStatusBadge isPaid={isUpToDate} />
+                        {isUpToDate && (
+                          <span className="text-xs text-green-600 font-medium">Up To Date</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>

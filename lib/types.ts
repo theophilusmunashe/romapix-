@@ -53,7 +53,8 @@ export function getMonthlyPaymentStatus(client: Client, targetMonth: string) {
 
 // Helper to get all months with payment status
 export function getMonthlyPaymentHistory(client: Client) {
-  const startDate = new Date(client.subscriptionDate);
+  // Start from December 2025 as requested
+  const startDate = new Date("2025-12-01");
   const currentDate = new Date();
   const months = [];
   
@@ -70,4 +71,10 @@ export function getMonthlyPaymentHistory(client: Client) {
   }
   
   return months;
+}
+
+// Helper to check if client is up to date (paid all months from Dec 2025 to current)
+export function isClientUpToDate(client: Client) {
+  const monthlyHistory = getMonthlyPaymentHistory(client);
+  return monthlyHistory.length > 0 && monthlyHistory.every(month => month.isPaid);
 }
