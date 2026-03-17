@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Client, Payment } from "@/lib/types";
-import { calculateClientTotals } from "@/lib/types";
+import { calculateClientTotals, getMonthlyPaymentStatus } from "@/lib/types";
 import {
   getClients,
   addClient as storageAddClient,
@@ -82,12 +82,16 @@ export function useClients() {
     let totalOwing = 0;
     let paidClientsCount = 0;
     let unpaidClientsCount = 0;
+    const currentMonth = new Date().toISOString().slice(0, 7);
 
     clients.forEach((client) => {
-      const { totalPaid: clientPaid, amountOwing, isPaid } = calculateClientTotals(client);
+      const { totalPaid: clientPaid, amountOwing } = calculateClientTotals(client);
+      const currentMonthStatus = getMonthlyPaymentStatus(client, currentMonth);
+      const isCurrentMonthPaid = currentMonthStatus.isPaid;
+      
       totalPaid += clientPaid;
       totalOwing += amountOwing;
-      if (isPaid) {
+      if (isCurrentMonthPaid) {
         paidClientsCount++;
       } else {
         unpaidClientsCount++;

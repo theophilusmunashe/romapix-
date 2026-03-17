@@ -25,12 +25,13 @@ import {
 } from "@/components/ui/table";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { PaymentStatusBadge } from "@/components/payment-status-badge";
+import { MonthlyPaymentStatus } from "@/components/monthly-payment-status";
 import { ClientForm } from "@/components/client-form";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useClients } from "@/hooks/use-clients";
 import type { Client } from "@/lib/types";
-import { calculateClientTotals, TOTAL_SUBSCRIPTION_AMOUNT } from "@/lib/types";
+import { calculateClientTotals, TOTAL_SUBSCRIPTION_AMOUNT, getMonthlyPaymentHistory } from "@/lib/types";
 import {
   ArrowLeft,
   Calendar,
@@ -61,6 +62,7 @@ export default function ClientProfilePage() {
     description: "",
     amount: 0,
     date: new Date().toISOString().split("T")[0],
+    month: new Date().toISOString().slice(0, 7), // Current month in YYYY-MM format
   });
 
   useEffect(() => {
@@ -97,6 +99,7 @@ export default function ClientProfilePage() {
         description: paymentForm.description,
         amount: paymentForm.amount,
         date: paymentForm.date,
+        month: paymentForm.month,
       });
       if (updated) {
         setClient(updated);
@@ -104,6 +107,7 @@ export default function ClientProfilePage() {
           description: "",
           amount: 0,
           date: new Date().toISOString().split("T")[0],
+          month: new Date().toISOString().slice(0, 7),
         });
         setIsPaymentOpen(false);
       }
@@ -167,6 +171,8 @@ export default function ClientProfilePage() {
   }
 
   const { totalPaid, amountOwing, isPaid } = calculateClientTotals(client);
+  const monthlyHistory = getMonthlyPaymentHistory(client);
+  const currentMonth = new Date().toISOString().slice(0, 7);
 
   return (
     <div className="min-h-screen bg-background">
@@ -305,6 +311,44 @@ export default function ClientProfilePage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Monthly Payment History */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Monthly Payment Status
+                </CardTitle>
+                <CardDescription>Payment status for each month since registration</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {monthlyHistory.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No monthly payment history available.
+                    </div>
+                  ) : (
+                    monthlyHistory.map((monthData) => (
+                      <div key={monthData.month} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <div className="font-medium">{monthData.monthName}</div>
+                          {monthData.isPaid && (
+                            <div className="text-sm text-green-600">
+                              Paid: {formatCurrency(monthData.amount)}
+                            </div>
+                          )}
+                        </div>
+                        <MonthlyPaymentStatus 
+                          isPaid={monthData.isPaid} 
+                          isCurrentMonth={monthData.month === currentMonth}
+                          amount={monthData.amount}
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="space-y-6">
@@ -413,7 +457,7 @@ export default function ClientProfilePage() {
                 placeholder="e.g., 1st Contribution - Fence"
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="paymentAmount">Amount (USD)</Label>
                 <Input
@@ -433,6 +477,15 @@ export default function ClientProfilePage() {
                   type="date"
                   value={paymentForm.date}
                   onChange={(e) => setPaymentForm((prev) => ({ ...prev, date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paymentMonth">Month</Label>
+                <Input
+                  id="paymentMonth"
+                  type="month"
+                  value={paymentForm.month}
+                  onChange={(e) => setPaymentForm((prev) => ({ ...prev, month: e.target.value }))}
                 />
               </div>
             </div>

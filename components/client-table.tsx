@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PaymentStatusBadge } from "@/components/payment-status-badge";
 import type { Client } from "@/lib/types";
-import { calculateClientTotals } from "@/lib/types";
+import { calculateClientTotals, getMonthlyPaymentStatus } from "@/lib/types";
 import { Eye, Pencil, Trash2, MoreHorizontal, Search, Filter } from "lucide-react";
 
 interface ClientTableProps {
@@ -32,9 +32,13 @@ interface ClientTableProps {
 export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid">("all");
+  const currentMonth = new Date().toISOString().slice(0, 7);
 
   const filteredClients = clients.filter((client) => {
     const { isPaid } = calculateClientTotals(client);
+    const currentMonthStatus = getMonthlyPaymentStatus(client, currentMonth);
+    const isCurrentMonthPaid = currentMonthStatus.isPaid;
+    
     const matchesSearch =
       client.name.toLowerCase().includes(search.toLowerCase()) ||
       client.standNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -42,8 +46,8 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
 
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "paid" && isPaid) ||
-      (statusFilter === "unpaid" && !isPaid);
+      (statusFilter === "paid" && isCurrentMonthPaid) ||
+      (statusFilter === "unpaid" && !isCurrentMonthPaid);
 
     return matchesSearch && matchesStatus;
   });
@@ -84,7 +88,7 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
               onClick={() => setStatusFilter("paid")}
               className={statusFilter === "paid" ? "bg-green-600 hover:bg-green-700" : ""}
             >
-              Paid
+              Paid This Month
             </Button>
             <Button
               variant={statusFilter === "unpaid" ? "default" : "outline"}
@@ -92,7 +96,7 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
               onClick={() => setStatusFilter("unpaid")}
               className={statusFilter === "unpaid" ? "bg-red-600 hover:bg-red-700" : ""}
             >
-              Owing
+              Owing This Month
             </Button>
           </div>
         </div>
@@ -107,7 +111,7 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
               <TableHead className="hidden md:table-cell">Phone</TableHead>
               <TableHead className="text-right">Paid</TableHead>
               <TableHead className="text-right">Owing</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Status (This Month)</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -120,7 +124,9 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
               </TableRow>
             ) : (
               filteredClients.map((client) => {
-                const { totalPaid, amountOwing, isPaid } = calculateClientTotals(client);
+                const { totalPaid, amountOwing } = calculateClientTotals(client);
+                const currentMonthStatus = getMonthlyPaymentStatus(client, currentMonth);
+                const isCurrentMonthPaid = currentMonthStatus.isPaid;
                 return (
                   <TableRow key={client.id}>
                     <TableCell>
@@ -144,7 +150,7 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <PaymentStatusBadge isPaid={isPaid} />
+                      <PaymentStatusBadge isPaid={isCurrentMonthPaid} />
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
